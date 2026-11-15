@@ -1,0 +1,73 @@
+====================================================================== 
+1. ADVERSARIAL FILES: naive loader vs robust loader
+======================================================================
+good             | naive: no crash, but header read as ['station', 'date', 'hour', 'pm25']
+                 | robust: OK: 2 rows (delimiter=',', encoding=utf-8-sig)
+missing_column   | naive: no crash, but header read as ['station', 'date', 'hour']
+                 | robust: REJECTED: missing column(s) ['pm25'] (delimiter=',', encoding=utf-8-sig)
+wrong_delimiter  | naive: no crash, but header read as ['station;date;hour;pm25']
+                 | robust: OK: 2 rows (delimiter=';', encoding=utf-8-sig)
+latin1_encoding  | naive: CRASH UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe9 in position 37: invalid
+                 | robust: OK: 1 rows (delimiter=',', encoding=latin-1)
+utf16_encoding   | naive: CRASH UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid 
+                 | robust: OK: 2 rows (delimiter=',', encoding=utf-16)
+empty            | naive: no crash, 0 rows (silent!)
+                 | robust: REJECTED: file is empty
+
+====================================================================== 
+2. SQL: string concatenation (+) vs ? placeholder
+======================================================================
+concat  | input="O'Brien Nagar"
+        | SQL sent: SELECT ... WHERE station = 'O'Brien Nagar'
+        | ERROR: OperationalError: near "Brien": syntax error
+param ? | input="O'Brien Nagar"
+        | result: 70.0
+
+concat  | input="Adyar' OR '1'='1"
+        | SQL sent: SELECT AVG(pm25) FROM aq WHERE station = 'Adyar' OR '1'='1'
+        | result: 71.0
+param ? | input="Adyar' OR '1'='1"
+        | result: None
+
+Explanation: with +, the quote in the data closes the SQL string early. 'O'Brien Nagar' becomes a syntax error, and  Adyar' OR '1'='1  becomes the condition  station='Adyar' OR '1'='1'  which is always true, so ALL rows are averaged (injection). With ?, the value is passed separately from the SQL text and is always treated as data: the quote is harmless and the injection matches no station (None).
+
+====================================================================== 
+3. executemany() vs execute() in a loop (on-disk database, one commit)
+======================================================================
+n=  1,000 | execute loop 0.0103s | executemany 0.0102s | ratio 1.01x
+n= 10,000 | execute loop 0.0452s | executemany 0.0231s | ratio 1.96x
+n=100,000 | execute loop 0.3369s | executemany 0.2124s | ratio 1.59x
+n=200,000 | execute loop 0.8137s | executemany 0.4084s | ratio 1.99x
+Both are O(n); executemany keeps the loop in C and prepares the statement once, so the constant is smaller. (Real gain is larger if commit() is called inside the loop: n disk syncs instead of 1.)
+
+====================================================================== 
+4. SENTIMENT SCORER ON ADVERSARIAL SENTENCES
+======================================================================
+verdict | got      | expected | type                             | sentence
+OK      | negative | negative | sarcasm                          | Oh great, another day of choking smoke. Wonderful.  (score=-1)
+FAIL    | positive | negative | sarcasm                          | Yeah right, the air is SO clean today, I can barely breathe.  (score=1)
+OK      | positive | positive | single negation (works)          | The service is not bad.  (score=1)
+FAIL    | negative | positive | double negative                  | It is not that the staff were not helpful.  (score=-1)
+FAIL    | positive | negative | double negative                  | I can't say the officers were not rude.  (score=1)
+FAIL    | negative | neutral  | mixed opinion                    | Roads are clean but the smoke is terrible.  (score=-1)
+OK      | negative | negative | mixed opinion                    | Fast response, helpful staff, but the dust is still bad and the drain is broken.  (score=-1)
+OK      | negative | negative | negation scope over 'and'        | The air was never good and never clean.  (score=-2)
+FAIL    | positive | negative | negator not directly before word | Not at all helpful.  (score=1)
+FAIL    | neutral  | negative | no sentiment words, but is bad news | The air quality index is 312 today.  (score=0)
+
+6 of 10 adversarial sentences are mislabelled.
+
+==================================================================
+5. WHAT EACH ADVERSARIAL INPUT REVEALS ABOUT THE DESIGN
+==================================================================
+- Missing column / empty file : the naive loader either crashes later (KeyError) or silently returns nothing.
+  Design lesson: validate the header and file size BEFORE processing and report a clear reason.
+- Wrong delimiter             : the header becomes ONE column named 'station;date;hour;pm25'. Without detection every
+  value would be treated as missing. Lesson: sniff the dialect and check required columns.
+- Different encoding          : UTF-8 assumption raises UnicodeDecodeError (latin-1 / utf-16 files). Lesson: detect BOM,
+  try encodings in a defined order, and log which one was used.
+- Quote in a station name     : string building is not just an inconvenience, it is a security hole. Lesson: always
+  use ? placeholders; never trust text from files, apps or users.
+- Sarcasm / double negatives / mixed opinions : a word-list scorer has no understanding of context, tone or scope.
+  Lesson: treat the score as a rough signal, measure agreement with human labels (B4), and use a trained model
+  (or human review) where accuracy matters.

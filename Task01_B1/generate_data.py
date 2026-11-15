@@ -1,0 +1,35 @@
+"""Creates the input files for B1: 12 station CSVs for October 2026 (with faults) and a
+small hand-made file (small_messy.csv) that contains EVERY problem listed in A1.1.
+Run:  python Task01_B1/generate_data.py
+"""
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT.parent))
+from shared.aq_gen import write_station_files  # noqa: E402
+
+SMALL = """station,date,hour,pm25,pm10,no2,temp
+Adyar,2026-10-01,8,48,80,35,30.1
+Adyar,2026-10-01,9,NA,85,36,30.8
+Adyar,2026-10-01,10,,90,38,31.5
+Adyar,2026-10-01,10,,90,38,31.5
+Adyar,2026-10-01,11,-5,70,30,32.0
+Adyar,2026-10-01,12,9999,75,31,32.4
+Adyar,2026-10-01,13,52,76,32,32.9
+Guindy,2026-10-01,8,95,150,60,86.0
+Guindy,2026-10-01,9,99,155,62,87.8
+  adyar ,02/10/2026,8,55,88,40,29.5
+Velachery,2026-10-01,8,70,110,45,89.6
+Velachery,31-10-2026,9,72,112,46,90.1
+Porur,2026-10-01,7,58,98,39,29.5
+Porur,not-a-date,8,60,100,40,30.0
+Porur,2026-10-01,25,61,101,41,30.0
+Porur,2026-10-01,8,60,100,40,300.0
+"""
+
+if __name__ == "__main__":
+    (ROOT / "data").mkdir(exist_ok=True)
+    (ROOT / "data" / "small_messy.csv").write_text(SMALL, encoding="utf-8")
+    paths = write_station_files(ROOT / "data" / "raw")
+    print(f"Wrote small_messy.csv and {len(paths)} station files to {ROOT / 'data'}")

@@ -1,0 +1,16 @@
+         1435723 function calls in 1.698 seconds
+
+   Ordered by: internal time
+   List reduced from 45 to 8 due to restriction <8>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   105121    0.395    0.000    0.672    0.000 C:\Users\Kaviya R\AppData\Local\Programs\Python\Python314\Lib\csv.py:173(__next__)
+        1    0.237    0.237    1.698    1.698 C:\Users\Kaviya R\Downloads\CSA08-192524154-Assignment5\Task03_B3\b3_benchmark.py:28(by_loops)
+   105122    0.150    0.000    0.157    0.000 {built-in method builtins.next}
+     4380    0.146    0.000    0.653    0.000 C:\Users\Kaviya R\AppData\Local\Programs\Python\Python314\Lib\statistics.py:1453(_sum)
+    33180    0.076    0.000    0.101    0.000 C:\Users\Kaviya R\AppData\Local\Programs\Python\Python314\Lib\fractions.py:206(__new__)
+   105120    0.067    0.000    0.067    0.000 {method 'as_integer_ratio' of 'float' objects}
+   210241    0.066    0.000    0.066    0.000 C:\Users\Kaviya R\AppData\Local\Programs\Python\Python314\Lib\csv.py:159(fieldnames)
+   105120    0.060    0.000    0.127    0.000 C:\Users\Kaviya R\AppData\Local\Programs\Python\Python314\Lib\statistics.py:1597(_exact_ratio)
+
+
